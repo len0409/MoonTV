@@ -4,6 +4,7 @@
 
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
+import { HlsJsP2PEngine } from 'p2p-media-loader-hlsjs';
 import { Heart } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -1270,20 +1271,48 @@ function PlayPageClient() {
             if (video.hls) {
               video.hls.destroy();
             }
-            const hls = new Hls({
-              debug: false, // 关闭日志
-              enableWorker: true, // WebWorker 解码，降低主线程压力
-              lowLatencyMode: true, // 开启低延迟 LL-HLS
+
+            // 创建 P2P 增强的 HLS 实例
+            const HlsWithP2P = HlsJsP2PEngine.injectMixin(Hls);
+            const hls = new HlsWithP2P({
+              debug: false,
+              enableWorker: true,
+              lowLatencyMode: true,
 
               /* 缓冲/内存相关 */
-              maxBufferLength: 30, // 前向缓冲最大 30s，过大容易导致高延迟
-              backBufferLength: 30, // 仅保留 30s 已播放内容，避免内存占用
-              maxBufferSize: 60 * 1000 * 1000, // 约 60MB，超出后触发清理
+              maxBufferLength: 30,
+              backBufferLength: 30,
+              maxBufferSize: 60 * 1000 * 1000,
 
-              /* 自定义loader */
+              /* 自定义loader（广告过滤） */
               loader: blockAdEnabledRef.current
                 ? CustomHlsJsLoader
                 : Hls.DefaultConfig.loader,
+
+              p2p: {
+                core: {
+                  // P2P 网络配置
+                  announceTrackers: [
+                    'wss://tracker.openwebtorrent.com',
+                    'wss://tracker.files.fm:7073',
+                    'wss://tracker.btorrent.xyz',
+                    'wss://tracker.moorefo.xyz:443/announce',
+                    'wss://tracker.webtorrent.dev',
+                    'wss://tracker.webtorrent.io',
+                  ],
+                  // 同时下载的 HTTP 数（备用）
+                  simultaneousHttpDownloads: 3,
+                  // P2P 下载超时后改为 HTTP
+                  p2pNotReceivingBytesTimeoutMs: 10000,
+                  p2pInactiveLoaderDestroyTimeoutMs: 15000,
+                  // HTTP 失败重试
+                  httpErrorRetries: 2,
+                  p2pErrorRetries: 2,
+                },
+                onHlsJsCreated(hlsInstance: any) {
+                  console.log('[P2P] 引擎已就绪');
+                },
+              },
             });
 
             hls.loadSource(url);
