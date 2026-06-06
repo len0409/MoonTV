@@ -1272,7 +1272,9 @@ function PlayPageClient() {
             }
 
             // 动态导入 P2P 引擎（解决 ESM 兼容问题）
+            // @ts-expect-error - p2p-media-loader 与 hls.js 类型兼容性问题（运行时正常）
             const { HlsJsP2PEngine } = await import('p2p-media-loader-hlsjs');
+            // @ts-expect-error - injectMixin 参数类型私有属性不一致
             const HlsWithP2P = HlsJsP2PEngine.injectMixin(Hls);
             const hls = new HlsWithP2P({
               debug: false,
