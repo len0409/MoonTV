@@ -4,7 +4,6 @@
 
 import Artplayer from 'artplayer';
 import Hls from 'hls.js';
-import { HlsJsP2PEngine } from 'p2p-media-loader-hlsjs';
 import { Heart } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useRef, useState } from 'react';
@@ -1262,7 +1261,7 @@ function PlayPageClient() {
         },
         // HLS 支持配置
         customType: {
-          m3u8: function (video: HTMLVideoElement, url: string) {
+          m3u8: async function (video: HTMLVideoElement, url: string) {
             if (!Hls) {
               console.error('HLS.js 未加载');
               return;
@@ -1272,7 +1271,8 @@ function PlayPageClient() {
               video.hls.destroy();
             }
 
-            // 创建 P2P 增强的 HLS 实例
+            // 动态导入 P2P 引擎（解决 ESM 兼容问题）
+            const { HlsJsP2PEngine } = await import('p2p-media-loader-hlsjs');
             const HlsWithP2P = HlsJsP2PEngine.injectMixin(Hls);
             const hls = new HlsWithP2P({
               debug: false,
